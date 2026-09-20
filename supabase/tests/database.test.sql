@@ -1,5 +1,5 @@
 begin;
-select plan(11);
+select plan(12);
 select has_table('public','matches','matches exists');
 select has_table('public','match_participants','participants exists');
 select has_table('public','notifications','notifications exists');
@@ -11,5 +11,6 @@ select policy_cmd_is('public','matches','matches_host_update','UPDATE','match up
 select col_is_pk('public','profiles','id','profile id primary key');
 select col_has_check('public','player_ratings','rating','rating has value check');
 select has_function('public','prepare_user_deletion',array['uuid'],'account deletion preparation exists');
+select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='rls_auto_enable' and has_function_privilege('anon',p.oid,'execute')),'anonymous users cannot execute the RLS helper');
 select * from finish();
 rollback;

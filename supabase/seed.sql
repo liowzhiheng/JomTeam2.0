@@ -1,0 +1,26 @@
+-- Local-only accounts. Password for each: JomTeam123!
+insert into auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,confirmation_token,recovery_token,email_change_token_new,email_change,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+values
+('00000000-0000-0000-0000-000000000000','10000000-0000-0000-0000-000000000001','authenticated','authenticated','admin@jomteam.local',crypt('JomTeam123!',gen_salt('bf')),now(),'','','','','{"provider":"email","providers":["email"]}','{"first_name":"Admin","last_name":"JomTeam","gender":"prefer_not_to_say","birth_date":"1990-01-01"}',now(),now()),
+('00000000-0000-0000-0000-000000000000','10000000-0000-0000-0000-000000000002','authenticated','authenticated','aina@jomteam.local',crypt('JomTeam123!',gen_salt('bf')),now(),'','','','','{"provider":"email","providers":["email"]}','{"first_name":"Aina","last_name":"Zulkifli","gender":"female","birth_date":"1995-06-12"}',now(),now()),
+('00000000-0000-0000-0000-000000000000','10000000-0000-0000-0000-000000000003','authenticated','authenticated','harith@jomteam.local',crypt('JomTeam123!',gen_salt('bf')),now(),'','','','','{"provider":"email","providers":["email"]}','{"first_name":"Harith","last_name":"Faiz","gender":"male","birth_date":"1993-03-20"}',now(),now()),
+('00000000-0000-0000-0000-000000000000','10000000-0000-0000-0000-000000000004','authenticated','authenticated','joanne@jomteam.local',crypt('JomTeam123!',gen_salt('bf')),now(),'','','','','{"provider":"email","providers":["email"]}','{"first_name":"Joanne","last_name":"Lee","gender":"female","birth_date":"1997-10-08"}',now(),now());
+insert into auth.identities(id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) select id,id,email,jsonb_build_object('sub',id,'email',email),'email',now(),now(),now() from auth.users where email like '%@jomteam.local';
+update public.user_roles set role='admin' where user_id='10000000-0000-0000-0000-000000000001';
+update public.profiles set location='Kuala Lumpur',preferred_sports=array['Badminton','Running'],skill_level='intermediate',biography='Weekend athlete and friendly doubles partner.' where id='10000000-0000-0000-0000-000000000002';
+update public.profiles set location='Petaling Jaya',preferred_sports=array['Badminton','Futsal'],skill_level='intermediate' where id='10000000-0000-0000-0000-000000000003';
+update public.profiles set location='Kuala Lumpur',preferred_sports=array['Pickleball','Tennis'],skill_level='beginner' where id='10000000-0000-0000-0000-000000000004';
+
+insert into public.matches(id,host_id,title,sport,skill_level,max_players,participant_count,location,starts_at,duration_minutes,description,status) values
+('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000003','Badminton Social at KL Sports City','Badminton','intermediate',8,2,'KL Sports City, Bukit Jalil',now()+interval '2 days',90,'Friendly doubles with rotating partners.','open'),
+('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000004','After-work Pickleball','Pickleball','beginner',4,4,'Pickle Social Club, KL',now()+interval '4 days',90,'New players are welcome.','full'),
+('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000003','Sunday Morning Futsal','Futsal','all_levels',10,3,'Arena Sukan, PJ',now()-interval '14 days',120,'Social five-a-side.','completed'),
+('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000002','KLCC Easy 5K','Running','beginner',20,1,'KLCC Park',now()-interval '21 days',60,'Conversational pace.','cancelled');
+insert into public.match_participants(match_id,user_id) values('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000004');
+insert into public.match_join_requests(match_id,user_id,status) values('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','pending');
+insert into public.friend_requests(sender_id,recipient_id,status) values('10000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000002','pending');
+insert into public.friendships(user_id,friend_id) values('10000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000003');
+insert into public.match_messages(match_id,sender_id,body) values('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000003','Court 3 is booked. See everyone there!'),('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002','Great, see you there.');
+insert into public.player_ratings(match_id,rater_id,rated_user_id,rating,comment) values('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000003',5,'Friendly host and a great teammate.');
+insert into public.feedback(user_id,title,description,rating) values('10000000-0000-0000-0000-000000000002','Easy match discovery','Filters make it quick to find a suitable game.',5);
+insert into public.notifications(recipient_id,actor_id,type,title,match_id) values('10000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000003','join_accepted','Your join request was accepted','20000000-0000-0000-0000-000000000001');

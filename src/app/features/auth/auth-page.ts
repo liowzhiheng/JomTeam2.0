@@ -1,0 +1,41 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/auth.service';
+
+@Component({ selector: 'app-auth-page', imports: [ReactiveFormsModule, RouterLink], template: `
+  <main class="auth-layout">
+    <section class="auth-brand-panel"><a class="brand auth-brand" routerLink="/home"><span class="brand-mark">JT</span><span>JomTeam</span></a><div class="auth-statement"><span class="kicker">PLAY · CONNECT · BELONG</span><h1>There’s always room on the team.</h1><p>Discover nearby sports, meet friendly players, and make every game count.</p></div><div class="auth-rings" aria-hidden="true"><span></span><span></span><span></span></div></section>
+    <section class="auth-form-panel"><div class="auth-card">
+      @switch (mode()) {
+        @case ('verify') { <div class="success-orb">✓</div><h2>Check your email</h2><p>We sent you a verification link. Open it to activate your JomTeam account.</p><form [formGroup]="form" (ngSubmit)="resendVerification()" novalidate><label>Email address<input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />@if(form.controls.email.touched && form.controls.email.invalid){<small class="field-error">Enter a valid email address.</small>}</label>@if(error()){<div class="alert error" role="alert">{{error()}}</div>} @if(success()){<div class="alert success" role="status">{{success()}}</div>}<button class="button primary full" type="submit" [disabled]="loading()">{{ loading() ? 'Sending…' : 'Resend verification email' }}</button></form><a class="auth-link" routerLink="/login">Back to sign in</a> }
+        @default {
+          <p class="eyebrow">{{ mode() === 'register' ? 'CREATE YOUR ACCOUNT' : mode() === 'forgot' ? 'ACCOUNT RECOVERY' : mode() === 'reset' ? 'CHOOSE A NEW PASSWORD' : 'WELCOME BACK' }}</p>
+          <h2>{{ title() }}</h2><p>{{ subtitle() }}</p>
+          <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+            @if (mode() === 'register') { <div class="form-grid two"><label>First name<input formControlName="firstName" autocomplete="given-name" /></label><label>Last name<input formControlName="lastName" autocomplete="family-name" /></label></div><div class="form-grid two"><label>Gender<select formControlName="gender"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></label><label>Birth date<input type="date" formControlName="birthDate" /></label></div><label>Phone number<input formControlName="phone" autocomplete="tel" placeholder="+60 12 345 6789" /></label> }
+            @if (mode() !== 'reset') { <label>Email address<input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />@if(form.controls.email.touched && form.controls.email.invalid){<small class="field-error">Enter a valid email address.</small>}</label> }
+            @if (mode() !== 'forgot') { <label>Password<input type="password" formControlName="password" [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'" /><span class="hint">Use at least 8 characters.</span></label> }
+            @if (mode() === 'register' || mode() === 'reset') { <label>Confirm password<input type="password" formControlName="confirmPassword" autocomplete="new-password" /></label> }
+            @if(error()){<div class="alert error" role="alert">{{error()}}</div>} @if(success()){<div class="alert success" role="status">{{success()}}</div>}
+            <button class="button primary full" type="submit" [disabled]="loading()">{{ loading() ? 'Please wait…' : actionLabel() }}</button>
+          </form>
+          @if(mode() === 'login'){<div class="auth-actions"><a routerLink="/forgot-password">Forgot password?</a><span>New to JomTeam? <a routerLink="/register">Create an account</a></span></div>}
+          @if(mode() === 'register'){<p class="legal-copy">By creating an account, you agree to our <a routerLink="/terms">Terms</a> and <a routerLink="/privacy">Privacy Policy</a>.</p><a class="auth-link" routerLink="/login">Already have an account? Sign in</a>}
+        }
+      }
+    </div></section>
+  </main>
+` })
+export class AuthPage {
+  private readonly route = inject(ActivatedRoute); private readonly fb = inject(FormBuilder); private readonly auth = inject(AuthService); private readonly router = inject(Router);
+  readonly mode = signal(this.route.snapshot.data['mode'] as string); readonly loading = signal(false); readonly error = signal(''); readonly success = signal('');
+  readonly form = this.fb.nonNullable.group({ firstName:[''], lastName:[''], gender:[''], birthDate:[''], phone:[''], email:['', [Validators.required, Validators.email]], password:['', [Validators.minLength(8)]], confirmPassword:[''] });
+  readonly title = computed(() => ({login:'Sign in to JomTeam', register:'Join JomTeam', forgot:'Reset your password', reset:'Set a new password'}[this.mode()] ?? 'Welcome'));
+  readonly subtitle = computed(() => ({login:'Pick up where you left off.', register:'Your next team is waiting.', forgot:'We’ll send a secure reset link to your email.', reset:'Choose a password you don’t use elsewhere.'}[this.mode()] ?? ''));
+  readonly actionLabel = computed(() => ({login:'Sign in', register:'Create account', forgot:'Send reset link', reset:'Update password'}[this.mode()] ?? 'Continue'));
+  constructor() { const email=this.route.snapshot.queryParamMap.get('email'); if(email) this.form.controls.email.setValue(email); }
+  async submit() { this.error.set(''); this.success.set(''); const v=this.form.getRawValue(); const needsEmail=this.mode()!=='reset'; const needsPassword=this.mode()==='login'||this.mode()==='register'||this.mode()==='reset'; const missingRegistrationFields=this.mode()==='register'&&(!v.firstName.trim()||!v.lastName.trim()); if ((needsEmail && this.form.controls.email.invalid) || (needsPassword && (!v.password || this.form.controls.password.invalid)) || missingRegistrationFields) { this.form.markAllAsTouched(); this.error.set('Please check the highlighted fields.'); return; } if ((this.mode()==='register'||this.mode()==='reset') && v.password !== v.confirmPassword) { this.error.set('Passwords do not match.'); return; } this.loading.set(true); try { if(this.mode()==='login'){const {error}=await this.auth.signIn(v.email,v.password); if(error) throw error; await this.router.navigate(['/home']);} else if(this.mode()==='register'){const {error}=await this.auth.register(v.email,v.password,{first_name:v.firstName,last_name:v.lastName,gender:v.gender,birth_date:v.birthDate,phone:v.phone}); if(error) throw error; await this.router.navigate(['/verify-email'],{queryParams:{email:v.email}});} else if(this.mode()==='forgot'){const {error}=await this.auth.sendPasswordReset(v.email); if(error) throw error; this.success.set('If an account exists for this email, a reset link has been sent.');} else if(this.mode()==='reset'){const {error}=await this.auth.updatePassword(v.password); if(error) throw error; await this.auth.signOut(); this.success.set('Password updated. You can now sign in with your new password.'); this.form.reset();} } catch(e){this.error.set(this.friendlyError(e));} finally{this.loading.set(false);} }
+  async resendVerification() { this.error.set(''); this.success.set(''); if(this.form.controls.email.invalid){this.form.controls.email.markAsTouched(); this.error.set('Enter a valid email address.'); return;} this.loading.set(true); try{const {error}=await this.auth.resendVerification(this.form.controls.email.value); if(error) throw error; this.success.set('Verification email sent. Please check your inbox.');}catch(e){this.error.set(this.friendlyError(e));}finally{this.loading.set(false);} }
+  private friendlyError(error: unknown) { const message=error instanceof Error ? error.message : ''; if(message.toLowerCase().includes('auth session missing')) return 'This reset link is invalid or has expired. Request a new password reset email.'; return message || 'Something went wrong. Please try again.'; }
+}

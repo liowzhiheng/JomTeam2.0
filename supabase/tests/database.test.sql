@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_table('public','matches','matches exists');
+select has_table('public','match_participants','participants exists');
+select has_table('public','notifications','notifications exists');
+select has_function('public','accept_match_join_request',array['uuid'],'transactional match acceptance exists');
+select has_function('public','accept_friend_request',array['uuid'],'transactional friend acceptance exists');
+select policy_cmd_is('public','notifications','notifications_recipient_read','SELECT','notification read policy');
+select policy_cmd_is('public','match_messages','messages_member_read','SELECT','chat read policy');
+select policy_cmd_is('public','matches','matches_host_update','UPDATE','match update policy');
+select col_is_pk('public','profiles','id','profile id primary key');
+select col_has_check('public','player_ratings','rating','rating has value check');
+select has_function('public','prepare_user_deletion',array['uuid'],'account deletion preparation exists');
+select * from finish();
+rollback;

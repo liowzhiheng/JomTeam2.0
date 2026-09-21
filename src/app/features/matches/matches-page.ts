@@ -2,13 +2,14 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faMagnifyingGlass, faSliders } from '@fortawesome/free-solid-svg-icons';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/auth.service';
 import { MatchSummary } from '../../core/models';
 import { MatchRepository } from '../../core/match.repository';
 import { MatchCard } from '../../shared/match-card';
 
-@Component({ selector: 'app-matches-page', imports: [FormsModule, MatchCard, FontAwesomeModule], template: `
-  <section class="page-heading"><div><p class="eyebrow">DISCOVER</p><h1>Find a match</h1><p>Search local sports and meet your next teammates.</p></div></section>
+@Component({ selector: 'app-matches-page', imports: [FormsModule, MatchCard, FontAwesomeModule, RouterLink], template: `
+  <section class="page-heading"><div><p class="eyebrow">{{mineOnly()?'YOUR ACTIVITY':'DISCOVER'}}</p><h1>{{mineOnly()?'Created matches':'Find a match'}}</h1><p>{{mineOnly()?'Every match you have hosted.':'Search local sports and meet your next teammates.'}}</p></div>@if(mineOnly()){<a class="button secondary" routerLink="/matches">Browse community</a>}</section>
   <section class="filter-panel"><label class="search-field"><fa-icon [icon]="searchIcon" /><input [(ngModel)]="query" (keyup.enter)="applyFilters()" placeholder="Search matches or locations" aria-label="Search matches" /></label><button class="button secondary filter-button" type="button" (click)="applyFilters()"><fa-icon [icon]="filterIcon" /> Search</button>
     <div class="filter-row"><select [(ngModel)]="sport" (change)="applyFilters()" aria-label="Sport"><option value="">All sports</option>@for(s of sports;track s){<option [value]="s">{{s}}</option>}</select><select [(ngModel)]="skillLevel" (change)="applyFilters()" aria-label="Skill level"><option value="">Any skill</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="all_levels">All levels</option></select><input [(ngModel)]="date" (change)="applyFilters()" type="date" aria-label="Date"/><select [(ngModel)]="status" (change)="applyFilters()" aria-label="Match status"><option value="">All statuses</option><option value="open">Open</option><option value="full">Full</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><select [(ngModel)]="sort" (change)="applyFilters()" aria-label="Sort"><option value="soonest">Soonest first</option><option value="newest">Newest</option></select></div>
   </section>
@@ -19,12 +20,12 @@ import { MatchCard } from '../../shared/match-card';
   @else { <div class="empty-state"><span class="empty-icon"><fa-icon [icon]="searchIcon" /></span><h2>No matches found</h2><p>Try a different sport, date, or location.</p><button class="button secondary" (click)="clearSearch()">Clear search</button></div> }
 ` })
 export class MatchesPage implements OnInit {
-  private readonly repository=inject(MatchRepository);private readonly route=inject(ActivatedRoute);
+  private readonly repository=inject(MatchRepository);private readonly route=inject(ActivatedRoute);private readonly auth=inject(AuthService);
   readonly searchIcon=faMagnifyingGlass;readonly filterIcon=faSliders;readonly query=signal('');readonly sport=signal('');readonly skillLevel=signal('');readonly date=signal('');readonly status=signal('open');readonly sort=signal<'soonest'|'newest'>('soonest');
   readonly sports = ['Badminton','Basketball','Football','Futsal','Tennis','Volleyball','Running','Swimming','Table Tennis','Pickleball'];
-  readonly matches=signal<MatchSummary[]>([]);readonly total=signal(0);readonly page=signal(1);readonly pageSize=12;readonly loading=signal(true);readonly error=signal('');
-  ngOnInit(){const sport=this.route.snapshot.queryParamMap.get('sport');if(sport&&this.sports.includes(sport))this.sport.set(sport);void this.load();}
-  async load(){this.loading.set(true);this.error.set('');try{const result=await this.repository.search({query:this.query().trim()||undefined,sport:this.sport()||undefined,skillLevel:this.skillLevel()||undefined,date:this.date()||undefined,status:this.status()||undefined,page:this.page(),pageSize:this.pageSize,sort:this.sort()});this.matches.set(result.items);this.total.set(result.total);}catch(error){this.error.set(error instanceof Error?error.message:'Please check your connection and try again.');}finally{this.loading.set(false);}}
+  readonly matches=signal<MatchSummary[]>([]);readonly total=signal(0);readonly page=signal(1);readonly pageSize=12;readonly loading=signal(true);readonly error=signal('');readonly mineOnly=signal(false);
+  ngOnInit(){const params=this.route.snapshot.queryParamMap;const sport=params.get('sport');if(sport&&this.sports.includes(sport))this.sport.set(sport);this.mineOnly.set(params.get('mine')==='true');if(this.mineOnly())this.status.set('');void this.load();}
+  async load(){this.loading.set(true);this.error.set('');try{const result=await this.repository.search({query:this.query().trim()||undefined,sport:this.sport()||undefined,skillLevel:this.skillLevel()||undefined,date:this.date()||undefined,status:this.status()||undefined,hostId:this.mineOnly()?this.auth.user()?.id:undefined,page:this.page(),pageSize:this.pageSize,sort:this.sort()});this.matches.set(result.items);this.total.set(result.total);}catch(error){this.error.set(error instanceof Error?error.message:'Please check your connection and try again.');}finally{this.loading.set(false);}}
   applyFilters(){this.page.set(1);void this.load();}
   hasFilters(){return!!(this.query().trim()||this.sport()||this.skillLevel()||this.date()||this.status());}
   previous(){if(this.page()>1){this.page.update(value=>value-1);void this.load();}}

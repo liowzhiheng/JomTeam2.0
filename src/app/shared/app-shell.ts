@@ -29,7 +29,7 @@ import { ImageService } from '../core/image.service';
           }
         </nav>
         <div class="sidebar-bottom">
-          <button class="nav-button" type="button" (click)="dark.set(!dark())" [attr.aria-label]="dark() ? 'Use light mode' : 'Use dark mode'">
+          <button class="nav-button theme-toggle" type="button" (click)="dark.set(!dark())" [attr.aria-label]="dark() ? 'Use light mode' : 'Use dark mode'" [attr.aria-pressed]="dark()">
             <fa-icon [icon]="dark() ? icons.sun : icons.moon" /><span>{{ dark() ? 'Light mode' : 'Dark mode' }}</span>
           </button>
           <button class="nav-button" type="button" (click)="logout()"><fa-icon [icon]="icons.logout" /><span>Sign out</span></button>
